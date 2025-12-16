@@ -1,6 +1,7 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ModelService } from '../../services/model.service';
 
 interface Message {
   id: number;
@@ -17,6 +18,7 @@ interface Message {
   styleUrls: ['./chat.component.css']
 })
 export class ChatComponent {
+  private modelService = inject(ModelService);
   messages = signal<Message[]>([
     {
       id: 1,
@@ -43,16 +45,28 @@ export class ChatComponent {
       this.messages.update(msgs => [...msgs, newMsg]);
       this.newMessage.set('');
 
-      // Simular resposta automática
-      setTimeout(() => {
-        const autoReply: Message = {
-          id: this.messageIdCounter++,
-          text: 'achou mesmo que ia funcionar? kkkkkkkkkkkk',
-          sender: 'other',
-          timestamp: new Date()
-        };
-        this.messages.update(msgs => [...msgs, autoReply]);
-      }, 1000);
+      // Chamar o serviço do modelo
+      this.modelService.sendMessage(messageText).subscribe({
+        next: (response) => {
+          const autoReply: Message = {
+            id: this.messageIdCounter++,
+            text: response.message || JSON.stringify(response),
+            sender: 'other',
+            timestamp: new Date()
+          };
+          this.messages.update(msgs => [...msgs, autoReply]);
+        },
+        error: (error) => {
+          console.error('Erro ao chamar o modelo:', error);
+          const errorReply: Message = {
+            id: this.messageIdCounter++,
+            text: 'Erro ao processar sua mensagem.',
+            sender: 'other',
+            timestamp: new Date()
+          };
+          this.messages.update(msgs => [...msgs, errorReply]);
+        }
+      });
     }
   }
 
